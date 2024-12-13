@@ -1,10 +1,11 @@
 import puppeteer from "puppeteer";
+import xlsx from "xlsx";
 
 const basic_url = "https://www.beautybyzain.co";
 
 const getLinks = async () => {
   try {
-    // Start a Puppeteer session
+    // Start a Puppeteer session in headless mode
     const browser = await puppeteer.launch({
       headless: true,
       defaultViewport: null,
@@ -32,11 +33,25 @@ const getLinks = async () => {
 
     console.log("Links found:", links);
 
+    const results = [];
+
     // Process each link
     for (let index = 0; index < links.length; index++) {
       const fullUrl = basic_url + links[index];
-      await getProduct(fullUrl, page); // Ensure await for asynchronous function
+      const productData = await getProduct(fullUrl, page); // Ensure await for asynchronous function
+
+      if (productData) {
+        results.push({
+          Serial: index + 1,
+          Title: productData.title,
+          Price: productData.price,
+          Descriptions: productData.descriptions.join(" \n")
+        });
+      }
     }
+
+    // Save results to an Excel file
+    saveToExcel(results, "products.xlsx");
 
     // Close the browser
     await browser.close();
@@ -55,7 +70,7 @@ const getProduct = async (link, page) => {
     });
 
     // Extract product data from the page
-    const productData = await page.evaluate(() => {
+    return await page.evaluate(() => {
       const titleElement = document.querySelector(".product__title > h1");
       const priceElement = document.querySelector(".price__regular > .price-item--regular");
       const descriptionElements = document.querySelectorAll(".product__description.rte.quick-add-hidden p");
@@ -66,16 +81,21 @@ const getProduct = async (link, page) => {
 
       return { title, price, descriptions };
     });
-
-    if (productData.title) {
-      console.log(`Product Title: ${productData.title}`);
-      console.log(`Product Price: ${productData.price}`);
-      console.log(`Product Descriptions:`, productData.descriptions);
-    } else {
-      console.log(`No product title found for ${link}`);
-    }
   } catch (error) {
     console.error(`Error in getProduct for ${link}:`, error);
+    return null;
+  }
+};
+
+const saveToExcel = (data, filename) => {
+  try {
+    const worksheet = xlsx.utils.json_to_sheet(data);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Products");
+    xlsx.writeFile(workbook, filename);
+    console.log(`Data successfully saved to ${filename}`);
+  } catch (error) {
+    console.error("Error saving to Excel:", error);
   }
 };
 
