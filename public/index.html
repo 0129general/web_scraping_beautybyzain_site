@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Web Scraper</title>
+  <!-- Materialize CSS -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css" rel="stylesheet">
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background-color: #f4f4f4;
+      margin: 0;
+    }
+    .container {
+      width: 90%;
+      max-width: 600px;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+    #results table {
+      margin-top: 20px;
+    }
+    .spinner {
+      margin: 20px auto;
+      display: flex;
+      justify-content: center;
+    }
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h4 class="center-align">Web Scraper</h4>
+    <form id="scraper-form">
+      <div class="input-field">
+        <input type="text" id="basePath" name="basePath" placeholder="https://example.com" required>
+        <label for="basePath">Enter Base Path</label>
+      </div>
+      <div class="center-align">
+        <button class="btn waves-effect waves-light" type="submit">
+          Start Scraping
+        </button>
+      </div>
+    </form>
+    <div id="message" class="center-align"></div>
+    <div id="loading" class="spinner hidden">
+      <div class="preloader-wrapper small active">
+        <div class="spinner-layer spinner-blue-only">
+          <div class="circle-clipper left">
+            <div class="circle"></div>
+          </div>
+          <div class="gap-patch">
+            <div class="circle"></div>
+          </div>
+          <div class="circle-clipper right">
+            <div class="circle"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="results"></div>
+  </div>
+
+  <!-- Materialize JS -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+  <script>
+    document.getElementById("scraper-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const basePath = document.getElementById("basePath").value;
+      const messageDiv = document.getElementById("message");
+      const loadingSpinner = document.getElementById("loading");
+      const resultsDiv = document.getElementById("results");
+
+      // Reset UI
+      messageDiv.textContent = "";
+      resultsDiv.innerHTML = "";
+      loadingSpinner.classList.remove("hidden");
+
+      try {
+        const response = await fetch("/start-scraping", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: new URLSearchParams({ basePath }),
+        });
+
+        const result = await response.json();
+        loadingSpinner.classList.add("hidden");
+
+        if (response.ok) {
+          messageDiv.textContent = "Scraping completed successfully!";
+          messageDiv.style.color = "green";
+
+          // Build the table
+          const table = document.createElement("table");
+          table.className = "striped highlight responsive-table";
+          const thead = document.createElement("thead");
+          const headers = Object.keys(result[0] || {});
+          const headerRow = document.createElement("tr");
+
+          headers.forEach(header => {
+            const th = document.createElement("th");
+            th.textContent = header;
+            headerRow.appendChild(th);
+          });
+          thead.appendChild(headerRow);
+          table.appendChild(thead);
+
+          const tbody = document.createElement("tbody");
+          result.forEach(row => {
+            const tr = document.createElement("tr");
+            headers.forEach(header => {
+              const td = document.createElement("td");
+              td.textContent = row[header];
+              tr.appendChild(td);
+            });
+            tbody.appendChild(tr);
+          });
+          table.appendChild(tbody);
+
+          resultsDiv.appendChild(table);
+        } else {
+          messageDiv.textContent = "An error occurred during scraping.";
+          messageDiv.style.color = "red";
+        }
+      } catch (error) {
+        console.error("Error starting scraping:", error);
+        messageDiv.textContent = "An error occurred. Check the server logs.";
+        messageDiv.style.color = "red";
+        loadingSpinner.classList.add("hidden");
+      }
+    });
+  </script>
+</body>
+</html>
